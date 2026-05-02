@@ -90,9 +90,13 @@ DELETE FROM time_line WHERE (content='World')
 
 ### Hasilnya
 
+![Tautology Berhasil](Screenshot 2026-05-02 191858.png)
+
 ![Piggyback - Sebelum Submit](Screenshot 2026-05-02 192401.png)
 
 ![Piggyback - Setelah Submit](Screenshot 2026-05-02 193122.png)
+
+![Tautology Ditolak](code2-5.png)
 
 Data **"World"** berhasil dihapus dari database oleh serangan ini, padahal kita hanya mengisi form tambah timeline biasa.
 
