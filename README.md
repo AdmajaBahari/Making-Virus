@@ -51,7 +51,7 @@ Karena `'1'='1'` selalu benar, sistem langsung mengizinkan masuk tanpa cek passw
 
 ### Hasilnya — Serangan Berhasil
 
-![Hasil Tautology Berhasil](hasil original.png)
+![Hasil Tautology Berhasil](hasil%20original.png)
 
 Kita berhasil masuk sebagai **user1** padahal password yang dimasukkan salah. Di terminal terlihat `POST /login HTTP/1.1" 302` yang artinya login berhasil dan diarahkan ke halaman utama.
 
@@ -88,7 +88,7 @@ DELETE FROM time_line WHERE (content='World')
 
 ### Hasilnya — Serangan Berhasil
 
-![Setelah Hapus Data World](setelah hapus data world.png)
+![Setelah Hapus Data World](setelah%20hapus%20data%20world.png)
 
 Data **"World"** berhasil dihapus dari database, padahal kita hanya mengisi form tambah timeline biasa.
 
@@ -135,11 +135,11 @@ Perubahan kecil tapi dampaknya besar:
 
 ### Tampilan kode yang sudah diperbaiki
 
-![Full Code Secure](full code.png)
+![Full Code](full%20code.png)
 
 ### Hasilnya setelah diperbaiki
 
-![Hasil Secure](hasil secure.png)
+![Hasil Secure](hasil%20secure.png)
 
 Payload yang sama dicoba lagi di versi aman, hasilnya **"Username/password salah"** — serangan tidak berhasil. Di terminal terlihat `POST /login HTTP/1.1" 200` yang artinya halaman login tetap ditampilkan, bukan diarahkan ke dalam.
 
