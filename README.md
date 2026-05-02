@@ -1,294 +1,166 @@
-# DatabaseSecurity\_0052
+# Praktikum Keamanan Database — SQL Injection
+**Repository**: DatabaseSecurity_0052 | **Mata Kuliah**: Keamanan Siber
 
+---
 
+## Apa yang dipelajari?
 
-\# DatabaseSecurity\_0052
+Di praktikum ini kita mencoba menyerang sebuah website Flask sederhana (`web01.py`) menggunakan dua teknik SQL Injection yang umum, yaitu **Tautology** dan **Piggyback**. Setelah berhasil menyerang, kita perbaiki kodenya supaya serangan tersebut tidak bisa dilakukan lagi.
 
-\# Praktikum Keamanan Database — SQL Injection
+---
 
+## File yang ada di repository ini
 
+- `web01_original.py` — kode asli yang masih punya celah keamanan
+- `web01.py` — kode yang sudah diperbaiki dan aman
+- `README.md` — dokumentasi ini
 
-\## Identitas
+---
 
-\- \*\*Mata Kuliah\*\*: Keamanan Siber
+## Serangan 1: Tautology Attack
 
-\- \*\*Repository\*\*: DatabaseSecurity\_0052
+### Apa itu tautology?
 
+Tautology berarti kita menyisipkan kondisi yang **selalu benar** ke dalam query SQL, sehingga sistem mengira kita sudah login dengan benar padahal belum.
 
+### Kenapa bisa terjadi?
 
-\---
-
-
-
-\## Deskripsi
-
-
-
-Praktikum ini membahas celah keamanan \*\*SQL Injection\*\* pada aplikasi web berbasis Flask (`web01.py`). Terdapat dua jenis serangan yang diujikan:
-
-1\. \*\*Tautology Attack\*\* — menyisipkan kondisi yang selalu benar untuk membypass login
-
-2\. \*\*Piggyback Attack\*\* — menumpangkan perintah SQL berbahaya untuk memanipulasi database
-
-
-
-\---
-
-
-
-\## File dalam Repository
-
-
-
-| File | Keterangan |
-
-|---|---|
-
-| `web01\_original.py` | Kode asli yang \*\*rentan\*\* terhadap SQL Injection |
-
-| `web01.py` | Kode yang sudah \*\*diperbaiki\*\* dan aman dari SQL Injection |
-
-| `README.md` | Dokumentasi praktikum |
-
-
-
-\---
-
-
-
-\## 1. Tautology Attack
-
-
-
-\### Penjelasan
-
-Tautology attack menyisipkan kondisi yang \*\*selalu bernilai TRUE\*\* ke dalam query SQL sehingga attacker bisa login tanpa mengetahui password yang benar.
-
-
-
-\### Kode Rentan (web01\_original.py)
+Karena kode di `web01_original.py` langsung menempelkan input user ke dalam query SQL tanpa filter:
 
 ```python
-
 cur.execute(
-
-&#x20;   "SELECT id, username FROM `user` WHERE username='%s' AND password='%s'"
-
-&#x20;   % (username, password)
-
+    "SELECT id, username FROM `user` WHERE username='%s' AND password='%s'"
+    % (username, password)
 )
-
 ```
 
+### Cara menyerangnya
 
+Masukkan ini di kolom username saat login:
+- **Username**: `user1' OR '1'='1`
+- **Password**: `123` (isi bebas, tidak berpengaruh)
 
-\### Payload yang Digunakan
-
-\- \*\*Username\*\*: `user1' OR '1'='1`
-
-\- \*\*Password\*\*: `123` (bebas)
-
-
-
-\### Query yang Terbentuk
+Query yang terbentuk di database jadi seperti ini:
 
 ```sql
-
 SELECT id, username FROM user 
-
 WHERE username='user1' OR '1'='1' AND password='123'
-
 ```
 
-Kondisi `'1'='1'` selalu TRUE sehingga WHERE clause selalu terpenuhi.
+Karena `'1'='1'` selalu benar, sistem langsung mengizinkan masuk tanpa cek password.
 
+### Hasilnya
 
+![Tautology Berhasil](Screenshot 2026-05-02 191858.png)
 
-\### Hasil — SERANGAN BERHASIL (web01\_original.py)
+Kita berhasil masuk sebagai **user1** padahal password yang dimasukkan salah. Di terminal terlihat `POST /login HTTP/1.1" 302` yang artinya login berhasil dan diarahkan ke halaman utama.
 
-!\[Tautology Berhasil](Screenshot\_2026-05-02\_191858.png)
+---
 
+## Serangan 2: Piggyback Attack
 
+### Apa itu piggyback?
 
-\*\*Bukti di terminal\*\*: POST /login HTTP/1.1" 302 → redirect ke home (login berhasil)
+Piggyback berarti kita "menumpangkan" perintah SQL berbahaya di belakang perintah yang normal. Misalnya setelah INSERT data, kita selipkan perintah DELETE untuk menghapus data orang lain.
 
+### Kenapa bisa terjadi?
 
-
-\---
-
-
-
-\## 2. Piggyback Attack
-
-
-
-\### Penjelasan
-
-Piggyback attack menumpangkan perintah SQL tambahan menggunakan tanda titik koma (`;`) untuk mengeksekusi perintah berbahaya seperti DELETE, DROP, atau INSERT.
-
-
-
-\### Kode Rentan (web01\_original.py)
+Kode asli menggunakan `executescript()` yang memperbolehkan beberapa perintah SQL sekaligus dipisah tanda titik koma:
 
 ```python
-
 cur.executescript(
-
-&#x20;   "INSERT INTO `time\_line` VALUES (NULL, %d, '%s')" % (uid, content)
-
+    "INSERT INTO `time_line` VALUES (NULL, %d, '%s')" % (uid, content)
 )
-
 ```
 
+### Cara menyerangnya
 
+Setelah login normal sebagai `user1`, isi form tambah timeline dengan payload ini:
 
-\### Payload yang Digunakan
+```
+data'); DELETE FROM time_line WHERE (content='World
+```
 
-
-
-`data'); DELETE FROM time\_line WHERE (content='World`
-
-
-
-\### Query yang Terbentuk
+Query yang terbentuk jadi dua perintah sekaligus:
 
 ```sql
-
-INSERT INTO time\_line VALUES (NULL, 1, 'data');
-
-DELETE FROM time\_line WHERE (content='World')
-
+INSERT INTO time_line VALUES (NULL, 1, 'data');
+DELETE FROM time_line WHERE (content='World')
 ```
 
+### Hasilnya
 
+![Piggyback - Sebelum Submit](Screenshot 2026-05-02 192401.png)
 
-\### Hasil — SERANGAN BERHASIL (web01\_original.py)
+![Piggyback - Setelah Submit](Screenshot 2026-05-02 193122.png)
 
-!\[Piggyback Input](Screenshot\_2026-05-02\_192401.png)
+Data **"World"** berhasil dihapus dari database oleh serangan ini, padahal kita hanya mengisi form tambah timeline biasa.
 
-!\[Piggyback Hasil](Screenshot\_2026-05-02\_193122.png)
+---
 
+## Perbaikan: Mencegah SQL Injection
 
+Solusi utamanya adalah menggunakan **Parameterized Query** — yaitu memisahkan struktur SQL dari data yang dimasukkan user. Dengan cara ini, karakter berbahaya seperti tanda kutip `'` atau titik koma `;` tidak akan diproses sebagai bagian dari perintah SQL.
 
-\*\*Bukti\*\*: Sebelum serangan ada "World" di list, setelah submit payload "World" terhapus dari database.
-
-
-
-\---
-
-
-
-\## 3. Pencegahan SQL Injection
-
-
-
-\### Solusi: Parameterized Query
-
-
-
-\### Perbaikan Login — Mencegah Tautology
+### Perbaikan login (mencegah tautology)
 
 ```python
-
-\# SEBELUM (rentan):
-
+# Sebelum — berbahaya
 cur.execute(
-
-&#x20;   "SELECT id, username FROM `user` WHERE username='%s' AND password='%s'"
-
-&#x20;   % (username, password)
-
+    "SELECT id, username FROM `user` WHERE username='%s' AND password='%s'"
+    % (username, password)
 )
 
-
-
-\# SESUDAH (aman):
-
+# Sesudah — aman
 cur.execute(
-
-&#x20;   'SELECT id, username FROM `user` WHERE username=? AND password=?',
-
-&#x20;   (username, password)
-
+    'SELECT id, username FROM `user` WHERE username=? AND password=?',
+    (username, password)
 )
-
 ```
 
-
-
-\### Perbaikan Create Timeline — Mencegah Piggyback
+### Perbaikan tambah timeline (mencegah piggyback)
 
 ```python
-
-\# SEBELUM (rentan):
-
+# Sebelum — berbahaya
 cur.executescript(
-
-&#x20;   "INSERT INTO `time\_line` VALUES (NULL, %d, '%s')" % (uid, content)
-
+    "INSERT INTO `time_line` VALUES (NULL, %d, '%s')" % (uid, content)
 )
 
-
-
-\# SESUDAH (aman):
-
+# Sesudah — aman
 cur.execute(
-
-&#x20;   'INSERT INTO `time\_line` VALUES (NULL, ?, ?)',
-
-&#x20;   (int(uid), content)
-
+    'INSERT INTO `time_line` VALUES (NULL, ?, ?)',
+    (int(uid), content)
 )
-
 ```
 
+Perubahan kecil tapi dampaknya besar:
+- `%s` diganti dengan `?` sebagai placeholder
+- `executescript()` diganti dengan `execute()` supaya hanya satu perintah yang bisa dijalankan
 
+### Hasilnya setelah diperbaiki
 
-\### Hasil — SERANGAN DITOLAK (web01.py)
+![Tautology Ditolak](code2-5.png)
 
-!\[Tautology Ditolak](code2-5.png)
+Payload yang sama dicoba lagi di versi aman, hasilnya **"Username/password salah"** — serangan tidak berhasil. Di terminal terlihat `POST /login HTTP/1.1" 200` yang artinya halaman login tetap ditampilkan, bukan diarahkan ke dalam.
 
+---
 
+## Perbandingan hasil
 
-\*\*Bukti di terminal\*\*: POST /login HTTP/1.1" 200 → tetap di halaman login (ditolak)
-
-
-
-\---
-
-
-
-\## Ringkasan Perbandingan
-
-
-
-| Serangan | File | Hasil |
-
+| Serangan | Versi | Hasil |
 |---|---|---|
+| Tautology `user1' OR '1'='1` | `web01_original.py` | Berhasil masuk tanpa password benar |
+| Piggyback `data'); DELETE FROM...` | `web01_original.py` | Data "World" terhapus |
+| Tautology `user1' OR '1'='1` | `web01.py` (aman) | Ditolak — login gagal |
+| Piggyback `data'); DELETE FROM...` | `web01.py` (aman) | Ditolak — data tetap aman |
 
-| Tautology `user1' OR '1'='1` | `web01\_original.py` | Berhasil login tanpa password benar |
+---
 
-| Piggyback `data'); DELETE FROM...` | `web01\_original.py` | Data "World" terhapus dari database |
+## Kesimpulan
 
-| Tautology `user1' OR '1'='1` | `web01.py` (aman) | Ditolak — "Username/password salah" |
+SQL Injection terjadi karena input dari user langsung digabungkan ke dalam query SQL tanpa pengamanan. Cara paling efektif untuk mencegahnya:
 
-
-
-\---
-
-
-
-\## Kesimpulan
-
-
-
-SQL Injection dapat dicegah dengan:
-
-1\. \*\*Parameterized Query\*\* — gunakan `?` sebagai placeholder, bukan `%s`
-
-2\. \*\*Gunakan `execute()` bukan `executescript()`\*\* — mencegah multiple statement
-
-3\. \*\*Validasi tipe data\*\* — pastikan input integer dengan `int()`
-
-4\. \*\*Secret key yang aman\*\* — gunakan `secrets.token\_hex(32)`
-
+1. Gunakan **Parameterized Query** — pakai `?` bukan `%s`
+2. Pakai `execute()` bukan `executescript()` supaya tidak bisa menjalankan banyak perintah sekaligus
+3. Selalu validasi tipe data, misalnya pastikan ID adalah angka dengan `int()`
+4. Jangan hardcode secret key — gunakan `secrets.token_hex(32)`
