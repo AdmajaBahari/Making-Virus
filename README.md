@@ -5,7 +5,7 @@
 
 ## Apa yang dipelajari?
 
-Di praktikum ini kita mencoba menyerang sebuah website Flask sederhana (`web01.py`) menggunakan dua teknik SQL Injection yang umum, yaitu **Tautology** dan **Piggyback**. Setelah berhasil menyerang, kita perbaiki kodenya supaya serangan tersebut tidak bisa dilakukan lagi.
+Di praktikum ini kita mencoba menyerang sebuah website Flask sederhana menggunakan dua teknik SQL Injection yang umum, yaitu **Tautology** dan **Piggyback**. Setelah berhasil menyerang, kita perbaiki kodenya supaya serangan tersebut tidak bisa dilakukan lagi.
 
 ---
 
@@ -49,9 +49,9 @@ WHERE username='user1' OR '1'='1' AND password='123'
 
 Karena `'1'='1'` selalu benar, sistem langsung mengizinkan masuk tanpa cek password.
 
-### Hasilnya
+### Hasilnya — Serangan Berhasil
 
-![Tautology Berhasil](Screenshot 2026-05-02 191858.png)
+![Hasil Tautology Berhasil](hasil original.png)
 
 Kita berhasil masuk sebagai **user1** padahal password yang dimasukkan salah. Di terminal terlihat `POST /login HTTP/1.1" 302` yang artinya login berhasil dan diarahkan ke halaman utama.
 
@@ -77,9 +77,7 @@ cur.executescript(
 
 Setelah login normal sebagai `user1`, isi form tambah timeline dengan payload ini:
 
-```
 data'); DELETE FROM time_line WHERE (content='World
-```
 
 Query yang terbentuk jadi dua perintah sekaligus:
 
@@ -88,17 +86,11 @@ INSERT INTO time_line VALUES (NULL, 1, 'data');
 DELETE FROM time_line WHERE (content='World')
 ```
 
-### Hasilnya
+### Hasilnya — Serangan Berhasil
 
-![Tautology Berhasil](Screenshot 2026-05-02 191858.png)
+![Setelah Hapus Data World](setelah hapus data world.png)
 
-![Piggyback - Sebelum Submit](Screenshot 2026-05-02 192401.png)
-
-![Piggyback - Setelah Submit](Screenshot 2026-05-02 193122.png)
-
-![Tautology Ditolak](code2-5.png)
-
-Data **"World"** berhasil dihapus dari database oleh serangan ini, padahal kita hanya mengisi form tambah timeline biasa.
+Data **"World"** berhasil dihapus dari database, padahal kita hanya mengisi form tambah timeline biasa.
 
 ---
 
@@ -141,9 +133,13 @@ Perubahan kecil tapi dampaknya besar:
 - `%s` diganti dengan `?` sebagai placeholder
 - `executescript()` diganti dengan `execute()` supaya hanya satu perintah yang bisa dijalankan
 
+### Tampilan kode yang sudah diperbaiki
+
+![Full Code Secure](full code.png)
+
 ### Hasilnya setelah diperbaiki
 
-![Tautology Ditolak](code2-5.png)
+![Hasil Secure](hasil secure.png)
 
 Payload yang sama dicoba lagi di versi aman, hasilnya **"Username/password salah"** — serangan tidak berhasil. Di terminal terlihat `POST /login HTTP/1.1" 200` yang artinya halaman login tetap ditampilkan, bukan diarahkan ke dalam.
 
