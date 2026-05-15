@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login – TimelineApp</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"/>
+</head>
+<body class="login-body">
+
+  <div class="login-card">
+    <div class="login-brand">TimelineApp</div>
+    <h2 class="login-title">Sign in to your account</h2>
+    {% if error %}
+    <div class="login-error">{{ error }}</div>
+    {% endif %}
+    <form action="/login" method="post" class="login-form">
+      <div class="login-field">
+        <label for="username">Username</label>
+        <input id="username" type="text" name="username" placeholder="Enter username" required/>
+      </div>
+      <div class="login-field">
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" placeholder="Enter password" required/>
+      </div>
+      <button type="submit" class="btn-login">Login</button>
+    </form>
+  </div>
+
+</body>
+</html>
