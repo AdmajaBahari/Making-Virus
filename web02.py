@@ -1,6 +1,8 @@
 import os
 import sqlite3
 from flask import Flask, redirect, request, session, render_template
+from jinja2 import Template
+
 
 app = Flask(__name__)
 app.secret_key = 'sqlinjection'
@@ -18,7 +20,7 @@ def create_tables():
         cur = conn.cursor()
         cur.execute('''
             CREATE TABLE IF NOT EXISTS user(
-                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT    NOT NULL UNIQUE,
                 password TEXT    NOT NULL
             )
@@ -39,11 +41,11 @@ def init_data():
         cur = conn.cursor()
         cur.executemany(
             'INSERT OR IGNORE INTO user(username, password) VALUES (?,?)',
-            [('alice', 'alicepw'), ('bob', 'bobpw'), ('admin', 'admin')]
+            [('alice','alicepw'), ('bob','bobpw')]
         )
         cur.executemany(
             'INSERT OR IGNORE INTO time_line(user_id, content) VALUES (?,?)',
-            [(1, 'Hello world'), (2, 'Hi there')]
+            [(1,'Hello world'), (2,'Hi there')]
         )
         conn.commit()
 
@@ -51,17 +53,20 @@ def init_data():
 def authenticate(username, password):
     with connect_db() as conn:
         cur = conn.cursor()
-        query = ("SELECT id, username FROM `user` WHERE username='%s' AND password='%s'"
-                 % (username, password))
+        query = ('SELECT id, username FROM `user` WHERE username=\'%s\' AND password=\'%s\'' % (username, password))
         cur.execute(query)
         row = cur.fetchone()
         return dict(row) if row else None
 
 
+
 def create_time_line(uid, content):
     with connect_db() as conn:
         cur = conn.cursor()
-        cur.execute('INSERT INTO time_line(user_id, content) VALUES (?,?)', (uid, content))
+        cur.execute(
+            'INSERT INTO time_line(user_id, content) VALUES (?,?)',
+            (uid, content)
+        )
         conn.commit()
 
 
@@ -89,15 +94,16 @@ def search():
     cur.execute(query)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
-    return {'query_used': query, 'results': rows}
-
+    return {
+        'query_used': query,
+        'results': rows
+    }
 
 @app.route('/init')
 def init_page():
     create_tables()
     init_data()
     return redirect('/')
-
 
 @app.route('/')
 def index():
@@ -107,18 +113,20 @@ def index():
     return redirect('/login')
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET','POST'])
 def login():
-    error = None
-    if request.method == 'POST':
+    if request.method=='POST':
         user = authenticate(request.form['username'], request.form['password'])
         if user:
             session['uid'] = user['id']
             session['username'] = user['username']
             return redirect('/')
-        error = 'Invalid username or password.'
-    return render_template('login.html', error=error)
-
+    return '''
+<form method="post">
+  <input name="username" placeholder="user"/><input name="password" type="password"/>
+  <button>Login</button>
+</form>
+'''
 
 @app.route('/create', methods=['POST'])
 def create():
@@ -126,13 +134,11 @@ def create():
         create_time_line(session['uid'], request.form['content'])
     return redirect('/')
 
-
 @app.route('/delete/<int:tid>')
 def delete(tid):
     if 'uid' in session:
         delete_time_line(session['uid'], tid)
     return redirect('/')
-
 
 @app.route('/logout')
 def logout():
@@ -140,7 +146,5 @@ def logout():
     return redirect('/login')
 
 
-if __name__ == '__main__':
-    create_tables()
-    init_data()
+if __name__=='__main__':
     app.run(debug=True)
