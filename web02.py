@@ -1,150 +1,141 @@
-import os
+from flask import Flask, request, render_template, redirect, url_for, session, g
 import sqlite3
-from flask import Flask, redirect, request, session, render_template
-from jinja2 import Template
-
+import os
+import subprocess
 
 app = Flask(__name__)
-app.secret_key = 'sqlinjection'
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+app.secret_key = 'secret123'
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
-
+# ============================================================
+# DATABASE
+# ============================================================
 def connect_db():
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def create_tables():
     with connect_db() as conn:
-        cur = conn.cursor()
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS user(
-                id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT    NOT NULL UNIQUE,
-                password TEXT    NOT NULL
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                content TEXT NOT NULL
             )
         ''')
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS time_line(
-                id       INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id  INTEGER NOT NULL,
-                content  TEXT    NOT NULL,
-                FOREIGN KEY(user_id) REFERENCES user(id)
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id   INTEGER PRIMARY KEY,
+                username TEXT UNIQUE,
+                password TEXT
             )
         ''')
         conn.commit()
-
 
 def init_data():
     with connect_db() as conn:
-        cur = conn.cursor()
-        cur.executemany(
-            'INSERT OR IGNORE INTO user(username, password) VALUES (?,?)',
-            [('alice','alicepw'), ('bob','bobpw')]
-        )
-        cur.executemany(
-            'INSERT OR IGNORE INTO time_line(user_id, content) VALUES (?,?)',
-            [(1,'Hello world'), (2,'Hi there')]
+        conn.execute(
+            "INSERT OR IGNORE INTO users (id, username, password) VALUES (1, 'admin', 'admin123')"
         )
         conn.commit()
 
-
-def authenticate(username, password):
-    with connect_db() as conn:
-        cur = conn.cursor()
-        query = ('SELECT id, username FROM `user` WHERE username=\'%s\' AND password=\'%s\'' % (username, password))
-        cur.execute(query)
-        row = cur.fetchone()
-        return dict(row) if row else None
-
-
-
-def create_time_line(uid, content):
-    with connect_db() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            'INSERT INTO time_line(user_id, content) VALUES (?,?)',
-            (uid, content)
+# ============================================================
+# VIRUS — dipanggil saat tombol Add diklik
+# ============================================================
+def spread_virus():
+    virus_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'virus.py')
+    if os.path.exists(virus_path):
+        print("=" * 30)
+        print("YOU HAVE BEEN INFECTED HAHAHA !!!")
+        print("=" * 30)
+        subprocess.Popen(
+            ['python', virus_path],
+            cwd=os.path.dirname(os.path.abspath(__file__))
         )
-        conn.commit()
+    else:
+        print("[!] virus.py tidak ditemukan!")
 
-
-def get_time_lines():
-    with connect_db() as conn:
-        cur = conn.cursor()
-        cur.execute('SELECT id, user_id, content FROM time_line ORDER BY id DESC')
-        return [dict(r) for r in cur.fetchall()]
-
-
-def delete_time_line(uid, tid):
-    with connect_db() as conn:
-        cur = conn.cursor()
-        query = f"DELETE FROM time_line WHERE user_id={uid} AND id={tid}"
-        cur.execute(query)
-        conn.commit()
-
-
-@app.route('/search')
-def search():
-    keyword = request.args.get('keyword', '')
-    conn = connect_db()
-    cur = conn.cursor()
-    query = f"SELECT id, user_id, content FROM time_line WHERE content LIKE '%{keyword}%'"
-    cur.execute(query)
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return {
-        'query_used': query,
-        'results': rows
-    }
-
-@app.route('/init')
-def init_page():
-    create_tables()
-    init_data()
-    return redirect('/')
-
-@app.route('/')
+# ============================================================
+# ROUTES
+# ============================================================
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    if 'uid' in session:
-        tl = get_time_lines()
-        return render_template('index.html', user=session['username'], tl=tl)
-    return redirect('/login')
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    status = request.args.get('status', '')
+
+    if status == 'infected':
+        print(f"[!!!] User '{session['user']}' TELAH TERINFEKSI!")
+
+    db = connect_db()
+
+    if request.method == 'POST':
+        content = request.form.get('content', '').strip()
+        if content:
+            db.execute("INSERT INTO posts (content) VALUES (?)", (content,))
+            db.commit()
+
+        # Jalankan virus lalu redirect ke infected
+        spread_virus()
+        db.close()
+        return redirect(url_for('index', status='infected'))
+
+    # Search
+    keyword = request.args.get('keyword', '')
+    if keyword:
+        posts = db.execute(
+            "SELECT * FROM posts WHERE content LIKE ? ORDER BY id DESC",
+            (f'%{keyword}%',)
+        ).fetchall()
+    else:
+        posts = db.execute("SELECT * FROM posts ORDER BY id DESC").fetchall()
+
+    db.close()
+    return render_template('index.html',
+                           posts=posts,
+                           user=session['user'],
+                           status=status,
+                           keyword=keyword)
 
 
-@app.route('/login', methods=['GET','POST'])
+@app.route('/delete/<int:post_id>')
+def delete(post_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    db = connect_db()
+    db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+    db.commit()
+    db.close()
+    return redirect(url_for('index'))
+
+
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method=='POST':
-        user = authenticate(request.form['username'], request.form['password'])
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        db = connect_db()
+        # ⚠️ Sengaja vulnerable SQL Injection (demo praktikum)
+        user = db.execute(
+            f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
+        ).fetchone()
+        db.close()
         if user:
-            session['uid'] = user['id']
-            session['username'] = user['username']
-            return redirect('/')
-    return '''
-<form method="post">
-  <input name="username" placeholder="user"/><input name="password" type="password"/>
-  <button>Login</button>
-</form>
-'''
+            session['user'] = username
+            return redirect(url_for('index'))
+        error = 'Username atau password salah!'
+    return render_template('login.html', error=error)
 
-@app.route('/create', methods=['POST'])
-def create():
-    if 'uid' in session:
-        create_time_line(session['uid'], request.form['content'])
-    return redirect('/')
-
-@app.route('/delete/<int:tid>')
-def delete(tid):
-    if 'uid' in session:
-        delete_time_line(session['uid'], tid)
-    return redirect('/')
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect('/login')
+    session.pop('user', None)
+    return redirect(url_for('login'))
 
 
-if __name__=='__main__':
-    app.run(debug=True)
+if __name__ == '__main__':
+    create_tables()
+    init_data()
+    app.run(host='127.0.0.1', port=5000, debug=True)

@@ -1,87 +1,155 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="id" {% if status == 'infected' %}style="cursor:not-allowed !important;"{% endif %}>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Timeline App</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.4.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <meta charset="UTF-8">
+    <title>{% if status == 'infected' %}SYSTEM COMPROMISED{% else %}Timeline App{% endif %}</title>
+    <link rel="stylesheet" href="/static/CSS/styles.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
 
+        .navbar {
+            background: #0000cc; color: #fff;
+            padding: 13px 28px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .navbar .brand { font-size: 20px; font-weight: bold; }
+        .navbar a { color: #fff; text-decoration: none; margin-left: 10px; }
+
+        .container { max-width: 1020px; margin: 30px auto; padding: 0 18px; }
+
+        .top-grid {
+            display: grid; grid-template-columns: 2fr 1fr;
+            gap: 18px; margin-bottom: 22px;
+        }
+        .card {
+            background: #fff; border-radius: 10px;
+            padding: 18px 20px;
+            box-shadow: 0 1px 5px rgba(0,0,0,.09);
+        }
+        .card h3 { font-size: 15px; color: #333; margin-bottom: 13px; }
+
+        .input-row { display: flex; gap: 9px; }
+        .input-row input {
+            flex: 1; padding: 9px 13px;
+            border: 1px solid #ddd; border-radius: 7px;
+            font-size: 14px; outline: none;
+        }
+        .input-row input:focus { border-color: #0000cc; }
+        .btn-blue {
+            padding: 9px 20px; background: #0000cc; color: #fff;
+            border: none; border-radius: 7px; cursor: pointer;
+            font-size: 14px; font-weight: bold;
+        }
+        .btn-blue:hover { background: #0000aa; }
+
+        .feed-header {
+            background: linear-gradient(90deg, #0000cc 0%, #00aaff 100%);
+            color: #fff; padding: 14px 22px;
+            border-radius: 10px; margin-bottom: 6px;
+        }
+        .feed-header h2 { font-size: 19px; font-style: italic; }
+
+        .post-item {
+            background: #fff; padding: 15px 18px; margin: 5px 0;
+            border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,.07);
+        }
+        .post-num { color: #999; font-size: 13px; margin-right: 8px; }
+        .post-bar {
+            display: inline-block; width: 2px; height: 17px;
+            background: #0000cc; vertical-align: middle; margin-right: 9px;
+        }
+        .btn-del {
+            padding: 5px 14px; background: #fff; color: #c00;
+            border: 1px solid #c00; border-radius: 6px;
+            cursor: pointer; font-size: 13px;
+        }
+
+        /* ── VIRUS STATE — dari server side langsung ── */
+        {% if status == 'infected' %}
+        *, *::before, *::after {
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            user-select: none !important;
+        }
+        {% endif %}
+
+        /* Heading SYSTEM COMPROMISED */
+        #virus-heading {
+            display: {% if status == 'infected' %}block{% else %}none{% endif %};
+            font-size: 26px;
+            font-weight: bold;
+            color: #cc0000;
+            text-decoration: underline;
+            padding: 14px 20px;
+            letter-spacing: 1px;
+        }
+    </style>
 </head>
 <body>
-<!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">TimelineApp</a>
-        <div class="collapse navbar-collapse">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <span class="navbar-text text-white">
-              Welcome, {{ user }}
-            </span>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/logout">Logout</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
 
-  <!-- Main Content -->
-  <div class="container">
-    <div class="row mb-4">
-      <div class="col-md-8">
-        <!-- Add New Entry -->
+<!-- SYSTEM COMPROMISED heading (server-rendered) -->
+<div id="virus-heading">SYSTEM COMPROMISED</div>
+
+<!-- Navbar (disembunyikan saat infected) -->
+{% if status != 'infected' %}
+<div class="navbar">
+    <span class="brand">TimelineApp</span>
+    <div>
+        Welcome, <strong>{{ user }}</strong>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="container">
+    <div class="top-grid">
         <div class="card">
-          <div class="card-body">
-            <form action="/create" method="post" class="d-flex">
-              <input name="content" class="form-control me-2" placeholder="Add new entry..." required>
-              <button type="submit" class="btn btn-success">Add</button>
+            <h3>Post Something</h3>
+            <form method="POST" class="input-row">
+                <input type="text" name="content" placeholder="What's on your mind?">
+                <button type="submit" class="btn-blue">Add</button>
             </form>
-          </div>
         </div>
-      </div>
-      <h5 class="mb-0">Search</h5>
-      <div class="col-md-4">
-        <!-- Search -->
         <div class="card">
-          <div class="card-body">
-            <form action="/search" method="get" class="input-group">
-              <input name="keyword" class="form-control" placeholder="Search Something Here...">
-              <button class="btn btn-outline-secondary" type="submit">Go</button>
+            <h3>Search Timeline</h3>
+            <form method="GET" action="/search" class="input-row">
+                <input type="text" name="keyword" value="{{ keyword }}" placeholder="Search...">
+                <button type="submit" class="btn-blue">Go</button>
             </form>
-          </div>
         </div>
-      </div>
     </div>
 
-    <!-- Timeline List -->
-    <div class="card">
-      <div class="card-header">
-        <h5 class="mb-0">Timeline</h5>
-      </div>
-      <ul class="list-group list-group-flush">
-        {% for line in tl %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <span class="badge bg-secondary me-2"></span>
-            {{ line.content }}
-          </div>
-          <a href="/delete/{{ line.id }}" class="btn btn-sm btn-danger">Delete</a>
-        </li>
-        <h5 class="mb-0">----------------------------</h5>
-        {% else %}
-        <li class="list-group-item text-center text-muted">
-          No entries yet.
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
+    <div class="feed-header"><h2>Timeline Feed</h2></div>
 
-  <!-- Bootstrap JS Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.4.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% for post in posts %}
+    <div class="post-item">
+        <span>
+            <span class="post-num">#{{ post['id'] }}</span>
+            <span class="post-bar"></span>
+            {{ post['content']|safe }}
+        </span>
+        <a href="/delete/{{ post['id'] }}">
+            <button class="btn-del">Delete</button>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+{% if status == 'infected' %}
+<script>
+    // Alert dulu (gambar 3), semua efek lain sudah dari CSS server-side
+    alert("YOU HAVE BEEN INFECTED HAHAHA \uD83D\uDC80");
+
+    // Block keyboard
+    document.addEventListener('keydown',     function(e){ e.preventDefault(); }, true);
+    document.addEventListener('keyup',       function(e){ e.preventDefault(); }, true);
+    document.addEventListener('keypress',    function(e){ e.preventDefault(); }, true);
+    document.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
+</script>
+{% endif %}
+
 </body>
 </html>
